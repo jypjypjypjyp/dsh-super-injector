@@ -147,3 +147,18 @@ test('session/event user+tool dispatch through subscription', async () => {
   assert.equal(events[1].type, 'tool')
   assert.equal(events[1].detail, 'dev_router_mode')
 })
+test('dev_router_status text 解析 → override calibrated', async () => {
+  const { core } = await resolveRouterCore()
+  const st = new RouterObserverState(core)
+  st.tool('s1', 'dev_router_status', {})
+  st.calibrate('s1', { mode: 0, override: 0 })
+  const s = st.snapshot('s1')!
+  assert.equal(s.override, 0); assert.equal(s.source, 'calibrated'); assert.equal(s.confidence, 'high')
+})
+test('不一致标记 drift + low', async () => {
+  const { core } = await resolveRouterCore()
+  const st = new RouterObserverState(core)
+  st.route('s2', 'react', '')
+  st.drift('s2','0','1')
+  const s = st.snapshot('s2')!; assert.equal(s.drift, 1); assert.equal(s.confidence, 'low')
+})

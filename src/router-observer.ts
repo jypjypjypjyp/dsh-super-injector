@@ -189,6 +189,12 @@ export async function createRouterObserver(ctx: any): Promise<{ state: RouterObs
       if (name === 'dev_router_mode' || name === 'dev_router_status') {
         state.tool(sid, name, event.data?.arguments)
       } else { state.promote(sid, name) }
+    } else if (ev === 'tool/result' && event?.name === 'dev_router_status') {
+      // 免费校准：解析 dev_router_status 返回文本，作为该会话此后时间线的最高可信源
+      const text = String(event?.data?.output ?? '')
+      const mode = /mode=([\d.]+|weak)/.exec(text)?.[1]
+      const override = /override=(\w+)/.exec(text)?.[1] ?? null
+      state.calibrate(sid, { mode, override })
     }
   })
   const selftest = async () => {

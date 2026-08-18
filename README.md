@@ -247,6 +247,21 @@ minimal 99/96 vs standard 91 vs 两阶段 98/99、触发机制微探针、轨迹
 - **client 操作必须用完整包名**：`client-modules.processOne` 对 `entry.options.name` 精确匹配，传短名会静默注册失败；
 - 注入的插件不进 loader 配置持久化——重启后由注入器自动恢复（引导器常驻）。
 
+## Router Observer（实时路由观测）
+
+DSH-better-sidebar 侧边栏「路由」tab：实时查看思维模式路由（router-standard / router-spec）的当前快照与时间线。
+
+- **数据来源**：passive observer 旁路重算——订阅 session 事件流，用 `router-core` 纯函数即时重算 route / promote / tool / guide 事件；不 invoke `dev_router_status`、不污染 agent 上下文。
+- **实时**：tab 可见时 2s 短轮询；面板隐藏自动暂停（DSH-better-sidebar 的 `visible` 约定）。未装 better-sidebar 时降级为设置页只读入口。
+- **API**（挂在 `/super-injector/api` 前缀下）：
+  - `GET /router/sessions` — 会话列表（含 confidence / observed / processed / drift）
+  - `GET /router/status?sessionId=` — 当前快照（mode / band / persona / core / override / source / confidence）
+  - `GET /router/timeline?sessionId=` — 有界时间线 + `windowStart`
+  - `GET /router/debug?sessionId=` — 观测统计 + drift 详情 + router-core 解析来源（SHA-256）
+  - `GET /router/selftest` — 自检结果
+- **可信度来源**：每条事件带 `source: observed | derived | baseline | calibrated`。`derived` = 旁路重算（≈）；`observed` = 观测到真实工具调用；`calibrated` = 从 `dev_router_status` 返回文本解析出的最高可信源。
+- **override 漂移限制**：`dev_router_mode` 的 override 是 router-bootstrap 闭包内存态，observer 只能从工具调用推断；错过事件 / `auto` 清除 / 重启会让时间线漂移。v1 用会话启动基线 + 免费校准缓解；telemetry(B)（router 侧 emit 真实 override）已记入 backlog 作为终态事实源。
+
 ---
 
 **仓库**：https://github.com/yjh051108/dsh-super-injector
