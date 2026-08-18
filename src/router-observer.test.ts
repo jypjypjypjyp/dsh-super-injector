@@ -116,3 +116,34 @@ test('createObserver derives route from user message event', async () => {
   assert.equal(s.band, 'react')
   assert.equal(s.mode, 1)
 })
+
+test('session/event user+tool dispatch through subscription', async () => {
+  let captured: any
+  const { state } = await createRouterObserver({
+    on: (_ev: string, h: any) => { captured = h; return () => {} },
+    get: () => undefined,
+  })
+  assert.equal(typeof captured, 'function')
+  // user/message → predictable band ('写一个 Web 爬虫' → react)
+  captured(
+    { id: 's1', header: { model: 'deepseek-v4-pro' } },
+    { type: 'user/message', data: { source: { kind: 'user' }, content: [{ type: 'text', text: '写一个 Web 爬虫' }] } },
+  )
+  const s = state.snapshot('s1')!
+  assert.equal(s.band, 'react')
+  assert.equal(s.mode, 1)
+  assert.equal(s.source, 'derived')
+  // dev_router_mode tool/call → override recorded through the real subscription
+  captured(
+    { id: 's1', header: { model: 'deepseek-v4-pro' } },
+    { type: 'tool/call', data: { name: 'dev_router_mode', arguments: 'react' } },
+  )
+  const s2 = state.snapshot('s1')!
+  assert.equal(s2.override, 1) // parseMode('react') → 1
+  assert.equal(s2.source, 'observed')
+  const events = s2.timeline.snapshot()
+  assert.equal(events.length, 2)
+  assert.equal(events[0].type, 'route')
+  assert.equal(events[1].type, 'tool')
+  assert.equal(events[1].detail, 'dev_router_mode')
+})

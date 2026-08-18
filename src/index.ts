@@ -584,8 +584,25 @@ export function apply(ctx: AppContext, config: Config): void {
   // ═══ 路由观测（Router Observer）═══
   // 闭包持有引用；API handler 读取 routerObs（可能尚未就绪 → 503）。createRouterObserver 是 async。
   let routerObs: Awaited<ReturnType<typeof createRouterObserver>> | undefined
+  let disposed = false
+  let disposeRouter: (() => void) | null = null
+  // 同步注册 dispose：热重载/卸载时即使 createRouterObserver 仍在 await 窗口内
+  // 也能清理（或在其 resolve 后立即清理），避免 session/event 订阅泄漏。
+  ctx.effect(() => {
+    return () => {
+      disposed = true
+      disposeRouter?.()
+      disposeRouter = null
+    }
+  }, 'router-observer: dispose')
   void createRouterObserver(ctx).then((obs) => {
+    if (disposed) {
+      // await 窗口内已被 dispose：立即清理订阅，不再注册。
+      obs.dispose()
+      return
+    }
     routerObs = obs
+    disposeRouter = () => obs.dispose()
     ctx.effect(() => obs.dispose, 'router-observer: events')
   }).catch((e) => void ctx.logger?.error('router-observer: init failed: %s', String(e)))
 
@@ -3279,7 +3296,8 @@ export function apply(ctx: AppContext, config: Config): void {
           return send(200, { ok: true, result })
         }
         // ── 路由观测 API（Router Observer）──
-        if (routerObs === undefined) {
+        // 503 只应在 /router/* 路径未就绪时返回；非 router 路径应落到下方 404。
+        if (path.startsWith('/router/') && routerObs === undefined) {
           return send(503, { ok: false, error: 'router observer not ready' })
         }
         if (req.method === 'GET' && path === '/router/sessions') {

@@ -193,8 +193,8 @@ export async function createRouterObserver(ctx: any): Promise<{ state: RouterObs
   })
   const selftest = async () => {
     const problems: string[] = []
-    if (state.core.classifyTask('写一个 Web 爬虫') !== 1) problems.push('classify react failed')
-    if (state.core.classifyTask('修复崩溃') !== 0) problems.push('classify spec failed')
+    if (core.classifyTask('写一个 Web 爬虫') !== 1) problems.push('classify react failed')
+    if (core.classifyTask('修复崩溃') !== 0) problems.push('classify spec failed')
     return { ok: problems.length === 0, problems }
   }
   return { state, dispose: sub, selftest, core }
