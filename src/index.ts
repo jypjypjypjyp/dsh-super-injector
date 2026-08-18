@@ -3301,7 +3301,13 @@ export function apply(ctx: AppContext, config: Config): void {
           return send(503, { ok: false, error: 'router observer not ready' })
         }
         if (req.method === 'GET' && path === '/router/sessions') {
-          return send(200, { ok: true, sessions: routerObs.state.sessions() })
+          // 只返回摘要字段，不返回整条 timeline 缓冲（避免列表载荷膨胀）。
+          const sessions = routerObs.state.sessions().map((s) => ({
+            sessionId: s.sessionId, mode: s.mode, band: s.band, override: s.override,
+            confidence: s.confidence, observed: s.observed, processed: s.processed,
+            drift: s.drift, lastEventAt: s.lastEventAt, source: s.source,
+          }))
+          return send(200, { ok: true, sessions })
         }
         if (req.method === 'GET' && path === '/router/status') {
           const sid = url.searchParams.get('sessionId') || ''
@@ -3322,7 +3328,9 @@ export function apply(ctx: AppContext, config: Config): void {
         }
         if (req.method === 'GET' && path === '/router/debug') {
           const sid = url.searchParams.get('sessionId') || ''
-          return send(200, { ok: true, debug: routerObs.state.debug(sid) })
+          const debug = routerObs.state.debug(sid)
+          if (debug === null) return send(404, { ok: false, error: 'no session' })
+          return send(200, { ok: true, debug })
         }
         if (req.method === 'GET' && path === '/router/selftest') {
           return send(200, { ok: true, selftest: await routerObs.selftest() })

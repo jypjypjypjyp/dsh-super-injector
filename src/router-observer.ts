@@ -92,6 +92,10 @@ export class RouterObserverState {
   private map = new Map<string, SessionView>()
   /** 实际解析来源，Task 3 装配时赋值；默认 mirror。 */
   srcKind: RouterCoreSource['kind'] = 'mirror'
+  /** 实际解析来源完整信息（kind + SHA-256 + match），装配时赋值；debug() 使用。 */
+  srcInfo: RouterCoreSource | null = null
+  /** 已触发过 promote（窄→全目录提升）的会话集合：只对首个非特殊 tool/call 发 once。 */
+  private promoted = new Set<string>()
   private core: RouterCore
   private limit: number
   constructor(core: RouterCore, limit = 200) { this.core = core; this.limit = limit }
@@ -115,11 +119,15 @@ export class RouterObserverState {
     if (this.core.isFlashModel?.(modelId)) v.model = modelId
   }
   promote(session: string, tool: string): void {
+    if (this.promoted.has(session)) return  // 只对首个非特殊 tool/call 提升
+    this.promoted.add(session)
     const v = this.view(session)
     v.lastEventAt = Date.now(); v.processed++
     v.timeline.push({ seq:v.processed, ts:v.lastEventAt, sessionId:session, type:'promote',
       band:v.band, mode:v.mode, source:'observed', override:v.override ?? null, detail:tool })
   }
+  /** 标记 promote 已触发（当首个非特殊 tool/call 经其他路径处理时）。 */
+  markPromoted(session: string): void { this.promoted.add(session) }
   markObserved(session: string): void {
     const v = this.view(session)
     v.observed++
@@ -147,10 +155,12 @@ export class RouterObserverState {
       v.timeline.push({ seq:++v.processed, ts:Date.now(), sessionId:session, type:'calibrate',
         band:v.band, mode:v.mode, source:'calibrated', override:v.override })
     } else if (parsed.mode !== undefined && parsed.mode !== null) {
-      v.mode = parsed.mode; v.band = this.core.bandOf(parsed.mode); v.override = parsed.mode
+      // mode-only 分支 = 校准"观测/推导出的模式"，并非声明 override：
+      // 调用方未传 override 时不 claim override 值（保持 override 原状）。
+      v.mode = parsed.mode; v.band = this.core.bandOf(parsed.mode)
       v.source = 'calibrated'; v.confidence = 'high'
       v.timeline.push({ seq:++v.processed, ts:Date.now(), sessionId:session, type:'calibrate',
-        band:v.band, mode:v.mode, source:'calibrated', override:v.override })
+        band:v.band, mode:v.mode, source:'calibrated', override:v.override ?? null })
     } else {
       v.confidence = 'low'
     }
@@ -162,9 +172,12 @@ export class RouterObserverState {
   }
   snapshot(session: string): SessionView | undefined { return this.map.get(session) }
   sessions(): SessionView[] { return [...this.map.values()] }
-  debug(session: string): object {
-    const v = this.view(session)
-    return { source:{ resolved: this.srcKind }, events:{observed:v.observed,processed:v.processed,drift:v.drift},
+  debug(session: string): object | null {
+    // 不创建幻影会话：会话不存在时返回 null（API 层 404）。
+    const v = this.map.get(session)
+    if (!v) return null
+    const resolved = this.srcInfo ? `${this.srcInfo.kind}:${this.srcInfo.hash}` : 'unknown'
+    return { source:{ resolved, match: this.srcInfo?.match ?? null }, events:{observed:v.observed,processed:v.processed,drift:v.drift},
       state:{mode:v.mode,band:v.band,override:v.override,confidence:v.confidence} }
   }
 }
@@ -173,6 +186,7 @@ export async function createRouterObserver(ctx: any): Promise<{ state: RouterObs
   const { core, source } = await resolveRouterCore()
   const state = new RouterObserverState(core)
   state.srcKind = source.kind // 供 debug()
+  state.srcInfo = source // 供 debug() 完整来源（kind + SHA-256 + match）
 
   // session 事件订阅（ctx.on 是 cordis 事件总线；事件名由 DSH session 提供）
   const sub = ctx.on('session/event', (session: any, event: any) => {
@@ -187,7 +201,9 @@ export async function createRouterObserver(ctx: any): Promise<{ state: RouterObs
       state.route(sid, mode, session.header?.model ?? agentModelOf(ctx))
     } else if (ev === 'tool/call') {
       const name = event.data?.name ?? ''
-      if (name === 'dev_router_mode' || name === 'dev_router_status') {
+      // spec §11.4：dev_router_mode / dev_router_status / dev_mode_subagent → tool 事件；
+      // 其余非特殊 tool/call 走 promote（窄→全目录提升），且 promote 只对首个触发。
+      if (name === 'dev_router_mode' || name === 'dev_router_status' || name === 'dev_mode_subagent') {
         state.tool(sid, name, event.data?.arguments)
       } else { state.promote(sid, name) }
     } else if (ev === 'tool/result' && event?.name === 'dev_router_status') {
@@ -199,8 +215,28 @@ export async function createRouterObserver(ctx: any): Promise<{ state: RouterObs
       const modeToken = /^mode=(\S+)/m.exec(text)?.[1]
       const mode = core.parseMode?.(modeToken) ?? modeToken
       const hasOverride = /override=(yes|no)/.exec(text)?.[1] === 'yes'
+      const parsedOverride = hasOverride ? mode : null
+      // 一致性对比（spec §5/§11.5 drift-on-mismatch）：解析结果与旁路推导状态比较，
+      // 不一致时先发射 drift（confidence→low），再覆盖为校准态。
+      const pre = state.snapshot(sid)
+      let mismatch = false
+      // 仅对"已确立"状态（非 baseline）做一致性对比：fresh 会话的首条校准结果
+      // 是基线确立，不与默认 weak 基线做 drift 对比。
+      if (pre && pre.source !== 'baseline') {
+        const modeDiff = parsedModeValue(mode) !== normalizedMode(pre.mode)
+        const overrideDiff = hasOverride !== (pre.override != null)
+        mismatch = modeDiff || overrideDiff
+        if (mismatch) {
+          state.drift(sid, String(pre.mode), String(parsedModeValue(mode)))
+        }
+      }
       // override=yes 时，mode 行就是 override 值；override=no/缺省时只记录观测模式，不claim override。
       state.calibrate(sid, { mode, override: hasOverride ? mode : null })
+      // drift 把 confidence 置 low；若非一致命中，calibrate 会置回 high。为满足
+      // spec（mismatch → drift 事件 + confidence low），校准后显式压回 low。
+      if (mismatch) {
+        const after = state.snapshot(sid); if (after) after.confidence = 'low'
+      }
     }
   })
   const selftest = async () => {
@@ -214,6 +250,16 @@ export async function createRouterObserver(ctx: any): Promise<{ state: RouterObs
 
 function agentModelOf(ctx: any): string {
   try { return ctx.get('agent')?.options?.model ?? '' } catch { return '' }
+}
+
+/** 把解析出的 mode 规约为可比对的值（weak 保持字符串，数字取数值）。 */
+function parsedModeValue(mode: unknown): unknown {
+  return typeof mode === 'number' ? mode : String(mode)
+}
+
+/** 把状态里的 mode 规约为与 parsedModeValue 可比对的形式。 */
+function normalizedMode(mode: string | number): unknown {
+  return typeof mode === 'number' ? mode : String(mode)
 }
 
 /** 从 SessionView + RouterCore 派生 persona（spec §6 快照卡人设摘要用）。 */

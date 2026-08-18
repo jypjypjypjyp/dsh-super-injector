@@ -3,16 +3,19 @@ import { useState, useEffect } from 'react'
 const API = '/super-injector/api/router'
 
 export function RouterPanel({ visible, scope }: any): JSX.Element {
-  const [sess, setSess] = useState<string | null>(scope?.sessionId ?? null)
   const [snap, setSnap] = useState<any>(null)
   const [timeline, setTimeline] = useState<any[]>([])
   const [dbg, setDbg] = useState<boolean>(false)
   const [dbgData, setDbgData] = useState<any>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!visible) return  // visible-gated 暂停
     let alive = true
-    const sid = sess || scope?.sessionId || ''
+    // sid 直接派生自 scope.sessionId（不缓存初始值）：会话切换时立即跟随新会话
+    const sid = scope?.sessionId ?? ''
+    // 会话切换时清空旧会话的调试数据与错误态
+    setDbgData(null); setLoadError(null)
     const load = async () => {
       try {
         const [s, t] = await Promise.all([
@@ -21,21 +24,28 @@ export function RouterPanel({ visible, scope }: any): JSX.Element {
         ])
         if (!alive) return
         if (s.ok) setSnap(s.status)
+        else setSnap({ mode:'–', band:'–', override:null, source:'unknown', confidence:'low', persona:'', core: [] })
         if (t.ok) setTimeline(t.timeline || [])
-      } catch {}
+        else setTimeline([])
+        setLoadError(null)
+      } catch (e) {
+        if (!alive) return
+        setLoadError(String(e instanceof Error ? e.message : e))
+      }
     }
     const loadDbg = async () => {
       if (!dbg) return
       try {
         const d = await fetch(`${API}/debug?sessionId=${sid}`).then(r=>r.json())
         if (alive && d.ok) setDbgData(d.debug)
+        else if (alive && !d.ok) setDbgData(null)
       } catch {}
     }
     load()
     loadDbg()
     const id = setInterval(() => { load(); loadDbg() }, 2000)
     return () => { alive = false; clearInterval(id) }
-  }, [sess, visible, scope, dbg])
+  }, [visible, scope?.sessionId, dbg])
 
   return (
     <div style={{ padding: 8, fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>
@@ -45,6 +55,9 @@ export function RouterPanel({ visible, scope }: any): JSX.Element {
           {visible ? '● 实时' : '（面板隐藏 · 已暂停）'}
         </span>
       </div>
+      {loadError && (
+        <div style={{ color:'#e5534b', fontSize:11, marginBottom:8 }}>（加载失败：{loadError}）</div>
+      )}
       {snap && (
         <div style={{ border:'1px solid var(--border)', borderRadius:8, padding:8, marginBottom:8 }}>
           <div>mode <b>{snap.mode}</b> · band <b>{snap.band}</b> · <span title={snap.source}>{snap.source}</span></div>
