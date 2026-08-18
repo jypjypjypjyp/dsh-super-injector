@@ -7,7 +7,7 @@
  */
 import type { SlotsService } from '@deepseek-ai/dsh-client-ui-slots'
 import { createElement } from 'react'
-import { RouterPanel } from './router-panel'
+import { RouterPanel, RoutingIcon } from './router-panel'
 
 type ClientContext = {
   slots: SlotsService
@@ -174,6 +174,7 @@ export function apply(ctx: ClientContext): void {
     ctx.effect(() => bs.registerTab({
       id: 'routing-observer',
       title: '路由',
+      icon: (size: number) => createElement(RoutingIcon, { size }),
       single: true,
       component: (props: any) => createElement(RouterPanel, props),
     }), 'router-observer: sidebar tab')

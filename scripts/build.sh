@@ -61,5 +61,7 @@ fi
 echo "=== Compiling src → lib (tsc $("$TSC" --version)) ==="
 "$TSC" -p tsconfig.json
 
+echo "=== Copying router-core mirror fixture (runtime resolveRouterCore dep) ===
+cp src/router-core.fixture.mjs lib/router-core.fixture.mjs
 echo "=== Build complete ==="
 ls -la lib/ lib/types/ 2>/dev/null
