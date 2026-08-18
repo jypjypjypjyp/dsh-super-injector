@@ -57,3 +57,110 @@ function normalize(mod: any): RouterCore {
     parseMode: mod.parseMode,
   }
 }
+export type RouterEventType = 'route' | 'promote' | 'tool' | 'guide' | 'calibrate' | 'baseline'
+export interface RouterTimelineEvent {
+  seq: number; ts: number; sessionId: string; type: RouterEventType
+  band: string; mode: string | number; source: 'observed'|'derived'|'baseline'|'calibrated'
+  override: string | number | null; detail?: string
+}
+
+export class RouterTimeline {
+  private buf: RouterTimelineEvent[] = []
+  private limit: number
+  constructor(limit = 200) { this.limit = limit }
+  get windowStart(): boolean { return this.buf.length === this.limit }
+  push(e: RouterTimelineEvent): void { this.buf.push(e); if (this.buf.length > this.limit) this.buf.shift() }
+  snapshot(): RouterTimelineEvent[] { return this.buf.slice() }
+}
+
+export interface SessionView {
+  sessionId: string
+  mode: string | number
+  band: string
+  override: string | number | null
+  confidence: 'high' | 'low'
+  observed: number
+  processed: number
+  drift: number
+  lastEventAt: number | null
+  source: RouterTimelineEvent['source']
+  model?: string
+  timeline: RouterTimeline
+}
+
+export class RouterObserverState {
+  private map = new Map<string, SessionView>()
+  /** 实际解析来源，Task 3 装配时赋值；默认 mirror。 */
+  srcKind: RouterCoreSource['kind'] = 'mirror'
+  private core: RouterCore
+  private limit: number
+  constructor(core: RouterCore, limit = 200) { this.core = core; this.limit = limit }
+  private view(id: string): SessionView {
+    let v = this.map.get(id)
+    if (!v) {
+      v = { sessionId:id, mode:'weak', band:'weak', override:null, confidence:'high',
+            observed:0, processed:0, drift:0, lastEventAt:null, source:'baseline',
+            timeline: new RouterTimeline(this.limit) }
+      this.map.set(id, v)
+    }
+    return v
+  }
+  route(session: string, mode: string|number, modelId: string): void {
+    const v = this.view(session)
+    const band = this.core.bandOf(mode)
+    v.mode = mode; v.band = band; v.source = 'derived'
+    v.lastEventAt = Date.now(); v.processed++
+    v.timeline.push({ seq:v.processed, ts:v.lastEventAt, sessionId:session, type:'route',
+      band, mode, source:'derived', override: v.override ?? null })
+    if (this.core.isFlashModel?.(modelId)) v.model = modelId
+  }
+  promote(session: string, tool: string): void {
+    const v = this.view(session)
+    v.lastEventAt = Date.now(); v.processed++
+    v.timeline.push({ seq:v.processed, ts:v.lastEventAt, sessionId:session, type:'promote',
+      band:v.band, mode:v.mode, source:'observed', override:v.override ?? null, detail:tool })
+  }
+  markObserved(session: string): void {
+    const v = this.view(session)
+    v.observed++
+  }
+  tool(session: string, name: string, arg: unknown): void {
+    const v = this.view(session); v.processed++; v.lastEventAt = Date.now()
+    if (name === 'dev_router_mode') {
+      const parsed = this.core.parseMode?.(String(arg)) ?? (typeof arg === 'string' ? arg : null)
+      if (parsed === 'auto') v.override = null
+      else v.override = parsed
+      v.source = 'observed'
+      v.timeline.push({ seq:v.processed, ts:v.lastEventAt, sessionId:session, type:'tool',
+        band:this.core.bandOf(parsed ?? v.mode), mode: v.mode, source:'observed', override:v.override, detail:name })
+    } else {
+      v.timeline.push({ seq:v.processed, ts:v.lastEventAt, sessionId:session, type:'tool',
+        band:v.band, mode:v.mode, source:'observed', override:v.override ?? null, detail:name })
+    }
+  }
+  calibrate(session: string, parsed: { mode?: string|number; override?: string|number|null }): void {
+    const v = this.view(session)
+    if (parsed.override !== undefined && parsed.override !== null) {
+      v.mode = parsed.mode ?? v.mode; v.band = this.core.bandOf(parsed.override); v.override = parsed.override
+      v.source = 'calibrated'; v.confidence = 'high'
+      v.timeline.push({ seq:++v.processed, ts:Date.now(), sessionId:session, type:'calibrate',
+        band:v.band, mode:v.mode, source:'calibrated', override:v.override })
+    } else if (parsed.mode !== undefined && parsed.mode !== null) {
+      v.mode = parsed.mode; v.band = this.core.bandOf(parsed.mode); v.override = parsed.mode
+    } else {
+      v.confidence = 'low'
+    }
+  }
+  drift(session: string, expected: string, actual: string): void {
+    const v = this.view(session); v.drift++; v.confidence = 'low'
+    v.timeline.push({ seq:v.processed, ts:Date.now(), sessionId:session, type:'guide',
+      band:v.band, mode:v.mode, source:'observed', override:v.override ?? null, detail:`drift ${expected}≠${actual}` })
+  }
+  snapshot(session: string): SessionView | undefined { return this.map.get(session) }
+  sessions(): SessionView[] { return [...this.map.values()] }
+  debug(session: string): object {
+    const v = this.view(session)
+    return { source:{ resolved: this.srcKind }, events:{observed:v.observed,processed:v.processed,drift:v.drift},
+      state:{mode:v.mode,band:v.band,override:v.override,confidence:v.confidence} }
+  }
+}

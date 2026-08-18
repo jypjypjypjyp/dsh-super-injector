@@ -5,7 +5,7 @@ import { cpSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveRouterCore, sha256 } from './router-observer.ts'
+import { resolveRouterCore, sha256, RouterTimeline, type RouterTimelineEvent } from './router-observer.ts'
 
 test('sha256 returns hex digest', () => {
   const h = sha256('abc')
@@ -53,4 +53,17 @@ test('resolveRouterCore returns installed when DSH_HOME has an installed router-
       process.env.DSH_HOME = prevDSHHome
     }
   }
+})
+let __seq = 0
+const e = (band: string): RouterTimelineEvent => ({
+  seq: ++__seq, ts: Date.now(), sessionId: 's1', type: 'route',
+  band, mode: 'weak', source: 'derived', override: null,
+})
+
+test('RouterTimeline bounds at limit', () => {
+  const tl = new RouterTimeline(3)
+  tl.push(e('spec')); tl.push(e('spec')); tl.push(e('spec')); tl.push(e('spec'))
+  const s = tl.snapshot()
+  assert.equal(s.length, 3)
+  assert.equal(s[0].seq, 2)
 })
