@@ -5,7 +5,7 @@ import { cpSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveRouterCore, sha256, RouterTimeline, type RouterTimelineEvent } from './router-observer.ts'
+import { resolveRouterCore, sha256, RouterTimeline, RouterObserverState, type RouterTimelineEvent, type RouterCore } from './router-observer.ts'
 
 test('sha256 returns hex digest', () => {
   const h = sha256('abc')
@@ -66,4 +66,45 @@ test('RouterTimeline bounds at limit', () => {
   const s = tl.snapshot()
   assert.equal(s.length, 3)
   assert.equal(s[0].seq, 2)
+})
+
+const stubCore: RouterCore = {
+  bandOf: (m) => (m === 0 ? 'spec' : String(m)),
+  classifyTask: () => 0,
+  personaFor: () => '',
+  coreFor: () => [],
+  testinessFor: () => '',
+  isFlashModel: () => false,
+  isComplexTask: () => false,
+  extractText: (d) => String(d),
+  sessionMode: () => 'weak',
+  parseMode: (t) => (t === 'auto' ? 'auto' : t),
+}
+
+test('drift produces a unique monotonic seq', () => {
+  const state = new RouterObserverState(stubCore)
+  state.route('s', 'weak', 'model')
+  state.drift('s', 'spec', 'react')
+  const events = state.snapshot('s')!.timeline.snapshot()
+  assert.equal(events.length, 2)
+  const [routeEv, driftEv] = events
+  assert.equal(routeEv.type, 'route')
+  assert.equal(driftEv.type, 'guide')
+  assert.notEqual(routeEv.seq, driftEv.seq)
+  assert.ok(driftEv.seq > routeEv.seq)
+})
+
+test('calibrate mode-only sets source calibrated + pushes event', () => {
+  const state = new RouterObserverState(stubCore)
+  state.calibrate('s', { mode: 0 })
+  const snap = state.snapshot('s')!
+  assert.equal(snap.source, 'calibrated')
+  assert.equal(snap.confidence, 'high')
+  const events = snap.timeline.snapshot()
+  assert.equal(events.length, 1)
+  const ev = events[0]
+  assert.equal(ev.type, 'calibrate')
+  assert.equal(ev.source, 'calibrated')
+  assert.equal(ev.mode, 0)
+  assert.equal(ev.override, 0)
 })

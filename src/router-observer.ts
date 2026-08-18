@@ -147,13 +147,16 @@ export class RouterObserverState {
         band:v.band, mode:v.mode, source:'calibrated', override:v.override })
     } else if (parsed.mode !== undefined && parsed.mode !== null) {
       v.mode = parsed.mode; v.band = this.core.bandOf(parsed.mode); v.override = parsed.mode
+      v.source = 'calibrated'; v.confidence = 'high'
+      v.timeline.push({ seq:++v.processed, ts:Date.now(), sessionId:session, type:'calibrate',
+        band:v.band, mode:v.mode, source:'calibrated', override:v.override })
     } else {
       v.confidence = 'low'
     }
   }
   drift(session: string, expected: string, actual: string): void {
-    const v = this.view(session); v.drift++; v.confidence = 'low'
-    v.timeline.push({ seq:v.processed, ts:Date.now(), sessionId:session, type:'guide',
+    const v = this.view(session); v.drift++; v.confidence = 'low'; v.lastEventAt = Date.now(); v.processed++
+    v.timeline.push({ seq:v.processed, ts:v.lastEventAt, sessionId:session, type:'guide',
       band:v.band, mode:v.mode, source:'observed', override:v.override ?? null, detail:`drift ${expected}≠${actual}` })
   }
   snapshot(session: string): SessionView | undefined { return this.map.get(session) }
