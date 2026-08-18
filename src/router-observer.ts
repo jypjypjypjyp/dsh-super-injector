@@ -141,7 +141,8 @@ export class RouterObserverState {
   calibrate(session: string, parsed: { mode?: string|number; override?: string|number|null }): void {
     const v = this.view(session)
     if (parsed.override !== undefined && parsed.override !== null) {
-      v.mode = parsed.mode ?? v.mode; v.band = this.core.bandOf(parsed.override); v.override = parsed.override
+      // override 即有效 mode：band 与 mode 都从 override 一致计算，避免混合赋值
+      v.mode = parsed.override; v.band = this.core.bandOf(parsed.override); v.override = parsed.override
       v.source = 'calibrated'; v.confidence = 'high'
       v.timeline.push({ seq:++v.processed, ts:Date.now(), sessionId:session, type:'calibrate',
         band:v.band, mode:v.mode, source:'calibrated', override:v.override })
@@ -191,10 +192,15 @@ export async function createRouterObserver(ctx: any): Promise<{ state: RouterObs
       } else { state.promote(sid, name) }
     } else if (ev === 'tool/result' && event?.name === 'dev_router_status') {
       // 免费校准：解析 dev_router_status 返回文本，作为该会话此后时间线的最高可信源
+      // 真实输出形如 `mode=<fmtMode> (band=<bandFor>)\noverride=yes|no`：
+      // mode 行携带模式值（0.00/0.30/1.00/weak 或 band 名），override 只是布尔指示器。
       const text = String(event?.data?.output ?? '')
-      const mode = /mode=([\d.]+|weak)/.exec(text)?.[1]
-      const override = /override=(\w+)/.exec(text)?.[1] ?? null
-      state.calibrate(sid, { mode, override })
+      // 锚定到独立的 `mode=<...>` 行（避免误匹配首行 `router-mode=...`）
+      const modeToken = /^mode=(\S+)/m.exec(text)?.[1]
+      const mode = core.parseMode?.(modeToken) ?? modeToken
+      const hasOverride = /override=(yes|no)/.exec(text)?.[1] === 'yes'
+      // override=yes 时，mode 行就是 override 值；override=no/缺省时只记录观测模式，不claim override。
+      state.calibrate(sid, { mode, override: hasOverride ? mode : null })
     }
   })
   const selftest = async () => {

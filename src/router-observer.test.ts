@@ -155,6 +155,43 @@ test('dev_router_status text 解析 → override calibrated', async () => {
   const s = st.snapshot('s1')!
   assert.equal(s.override, 0); assert.equal(s.source, 'calibrated'); assert.equal(s.confidence, 'high')
 })
+test('dev_router_status tool/result 经订阅解析 override=yes → calibrated', async () => {
+  let captured: any
+  const { state } = await createRouterObserver({
+    on: (_ev: string, h: any) => { captured = h; return () => {} },
+    get: () => undefined,
+  })
+  assert.equal(typeof captured, 'function')
+  // override=yes：mode 行 "react" 即 override 值
+  captured(
+    { id: 's3', header: { model: 'deepseek-v4-pro' } },
+    { type: 'tool/result', name: 'dev_router_status', data: { output: 'router-mode=standard\nmode=react (band=react)\npersona=…\ncore=[…]\ntestiness=…\noverride=yes' } },
+  )
+  const s = state.snapshot('s3')!
+  assert.equal(s.source, 'calibrated')
+  assert.ok(s.override) // mode "react" → parseMode → 1，truthy
+  assert.equal(s.confidence, 'high')
+})
+test('dev_router_status tool/result 经订阅解析 override=no → override null', async () => {
+  let captured: any
+  const { state } = await createRouterObserver({
+    on: (_ev: string, h: any) => { captured = h; return () => {} },
+    get: () => undefined,
+  })
+  assert.equal(typeof captured, 'function')
+  // override=no：只记录观测/推导模式，不 claim override
+  captured(
+    { id: 's4', header: { model: 'deepseek-v4-pro' } },
+    { type: 'tool/result', name: 'dev_router_status', data: { output: 'router-mode=standard\nmode=0.30 (band=mixed)\npersona=…\ncore=[…]\ntestiness=…\noverride=no' } },
+  )
+  const s = state.snapshot('s4')!
+  assert.equal(s.source, 'calibrated')
+  // override=no 时不得把字面量 "no" 当成 override 值（旧 bug）；mode-only 分支记录 mode 而非 "no"
+  assert.notEqual(s.override, 'no')
+  assert.notEqual(s.override, 'yes')
+  assert.equal(s.mode, 0.3)
+  assert.equal(s.band, 'transition') // 0.30 → transition band（bandOf 输出）
+})
 test('不一致标记 drift + low', async () => {
   const { core } = await resolveRouterCore()
   const st = new RouterObserverState(core)

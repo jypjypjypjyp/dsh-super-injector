@@ -260,7 +260,7 @@ DSH-better-sidebar 侧边栏「路由」tab：实时查看思维模式路由（r
   - `GET /router/debug?sessionId=` — 观测统计 + drift 详情 + router-core 解析来源（SHA-256）
   - `GET /router/selftest` — 自检结果
 - **可信度来源**：每条事件带 `source: observed | derived | baseline | calibrated`。`derived` = 旁路重算（≈）；`observed` = 观测到真实工具调用；`calibrated` = 从 `dev_router_status` 返回文本解析出的最高可信源。
-- **override 漂移限制**：`dev_router_mode` 的 override 是 router-bootstrap 闭包内存态，observer 只能从工具调用推断；错过事件 / `auto` 清除 / 重启会让时间线漂移。v1 用会话启动基线 + 免费校准缓解；telemetry(B)（router 侧 emit 真实 override）已记入 backlog 作为终态事实源。
+- **override 漂移限制**：`dev_router_mode` 的 override 是 router-bootstrap 闭包内存态，observer 只能从工具调用推断；错过事件 / `auto` 清除 / 重启会让时间线漂移。v1 用会话启动基线 + 免费校准（解析 `dev_router_status` 返回文本）缓解；**drift-on-mismatch 尚未实现**——当前实现只做免费校准，不在 mode 与 override 不一致时发射 `drift`。telemetry(B)（router 侧 emit 真实 override）已记入 backlog 作为终态事实源。
 
 ---
 
