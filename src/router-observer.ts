@@ -90,8 +90,6 @@ export interface SessionView {
 
 export class RouterObserverState {
   private map = new Map<string, SessionView>()
-  /** 实际解析来源，Task 3 装配时赋值；默认 mirror。 */
-  srcKind: RouterCoreSource['kind'] = 'mirror'
   /** 实际解析来源完整信息（kind + SHA-256 + match），装配时赋值；debug() 使用。 */
   srcInfo: RouterCoreSource | null = null
   /** 已触发过 promote（窄→全目录提升）的会话集合：只对首个非特殊 tool/call 发 once。 */
@@ -185,7 +183,6 @@ export class RouterObserverState {
 export async function createRouterObserver(ctx: any): Promise<{ state: RouterObserverState; dispose: () => void; selftest: () => Promise<{ ok: boolean; problems: string[] }>; core: RouterCore }> {
   const { core, source } = await resolveRouterCore()
   const state = new RouterObserverState(core)
-  state.srcKind = source.kind // 供 debug()
   state.srcInfo = source // 供 debug() 完整来源（kind + SHA-256 + match）
 
   // session 事件订阅（ctx.on 是 cordis 事件总线；事件名由 DSH session 提供）
@@ -215,7 +212,6 @@ export async function createRouterObserver(ctx: any): Promise<{ state: RouterObs
       const modeToken = /^mode=(\S+)/m.exec(text)?.[1]
       const mode = core.parseMode?.(modeToken) ?? modeToken
       const hasOverride = /override=(yes|no)/.exec(text)?.[1] === 'yes'
-      const parsedOverride = hasOverride ? mode : null
       // 一致性对比（spec §5/§11.5 drift-on-mismatch）：解析结果与旁路推导状态比较，
       // 不一致时先发射 drift（confidence→low），再覆盖为校准态。
       const pre = state.snapshot(sid)
