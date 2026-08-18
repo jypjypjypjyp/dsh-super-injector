@@ -16,6 +16,7 @@ export interface RouterCore {
   isComplexTask(text: string): boolean
   extractText(data: unknown): string
   sessionMode(session: unknown): unknown
+  parseMode(token: unknown): unknown
 }
 
 export function sha256(input: string): string {
@@ -53,5 +54,6 @@ function normalize(mod: any): RouterCore {
     isComplexTask: mod.isComplexTask,
     sessionMode: mod.sessionMode,
     extractText: mod.extractText,
+    parseMode: mod.parseMode,
   }
 }
