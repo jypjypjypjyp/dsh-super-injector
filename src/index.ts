@@ -32,6 +32,7 @@ import { join, relative, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL, fileURLToPath } from 'node:url'
+import { createRouterObserver, personaOf, coreNamesOf } from './router-observer'
 
 // ═══════════════════════════════════════════════════════════════════════
 // A: 插件生产线模板（dev_scaffold_plugin）——四种形态骨架：
@@ -579,6 +580,14 @@ export function apply(ctx: AppContext, config: Config): void {
   // 防御性兜底（schema 默认值只在 loader 装配时保证）。
   const intervalMs = config.intervalMs ?? 1500
   const watches = config.watches ?? []
+
+  // ═══ 路由观测（Router Observer）═══
+  // 闭包持有引用；API handler 读取 routerObs（可能尚未就绪 → 503）。createRouterObserver 是 async。
+  let routerObs: Awaited<ReturnType<typeof createRouterObserver>> | undefined
+  void createRouterObserver(ctx).then((obs) => {
+    routerObs = obs
+    ctx.effect(() => obs.dispose, 'router-observer: events')
+  }).catch((e) => void ctx.logger?.error('router-observer: init failed: %s', String(e)))
 
   // ============ 注入清单 ============
   function readRegistry(): RegistryEntry[] {
@@ -3268,6 +3277,37 @@ export function apply(ctx: AppContext, config: Config): void {
           if (!dir) return send(400, { ok: false, error: 'dir 必填（要内化成插件的文件夹路径）' })
           const result = await startIngest(dir, String(body?.title ?? ''))
           return send(200, { ok: true, result })
+        }
+        // ── 路由观测 API（Router Observer）──
+        if (routerObs === undefined) {
+          return send(503, { ok: false, error: 'router observer not ready' })
+        }
+        if (req.method === 'GET' && path === '/router/sessions') {
+          return send(200, { ok: true, sessions: routerObs.state.sessions() })
+        }
+        if (req.method === 'GET' && path === '/router/status') {
+          const sid = url.searchParams.get('sessionId') || ''
+          const s = routerObs.state.snapshot(sid)
+          if (!s) return send(404, { ok: false, error: 'no session' })
+          return send(200, { ok: true, status: {
+            mode: s.mode, band: s.band,
+            persona: personaOf(s, routerObs.core),
+            core: coreNamesOf(s, routerObs.core),
+            override: s.override, source: s.source, confidence: s.confidence,
+          } })
+        }
+        if (req.method === 'GET' && path === '/router/timeline') {
+          const sid = url.searchParams.get('sessionId') || ''
+          const s = routerObs.state.snapshot(sid)
+          if (!s) return send(404, { ok: false, error: 'no session' })
+          return send(200, { ok: true, timeline: s.timeline.snapshot(), windowStart: s.timeline.windowStart })
+        }
+        if (req.method === 'GET' && path === '/router/debug') {
+          const sid = url.searchParams.get('sessionId') || ''
+          return send(200, { ok: true, debug: routerObs.state.debug(sid) })
+        }
+        if (req.method === 'GET' && path === '/router/selftest') {
+          return send(200, { ok: true, selftest: await routerObs.selftest() })
         }
         return send(404, { ok: false, error: 'not found: ' + path })
       } catch (e) {

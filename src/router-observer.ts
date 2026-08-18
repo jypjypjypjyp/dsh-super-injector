@@ -167,3 +167,49 @@ export class RouterObserverState {
       state:{mode:v.mode,band:v.band,override:v.override,confidence:v.confidence} }
   }
 }
+
+export async function createRouterObserver(ctx: any): Promise<{ state: RouterObserverState; dispose: () => void; selftest: () => Promise<{ ok: boolean; problems: string[] }>; core: RouterCore }> {
+  const { core, source } = await resolveRouterCore()
+  const state = new RouterObserverState(core)
+  state.srcKind = source.kind // 供 debug()
+
+  // session 事件订阅（ctx.on 是 cordis 事件总线；事件名由 DSH session 提供）
+  const sub = ctx.on('session/event', (session: any, event: any) => {
+    if (!session?.id) return
+    const sid = session.id
+    state.markObserved(sid)
+    const ev = event?.type ?? ''
+    if (ev === 'user/message') {
+      const text = core.extractText?.(event.data)
+      if (!text) return
+      const mode = core.classifyTask(text)
+      state.route(sid, mode, session.header?.model ?? agentModelOf(ctx))
+    } else if (ev === 'tool/call') {
+      const name = event.data?.name ?? ''
+      if (name === 'dev_router_mode' || name === 'dev_router_status') {
+        state.tool(sid, name, event.data?.arguments)
+      } else { state.promote(sid, name) }
+    }
+  })
+  const selftest = async () => {
+    const problems: string[] = []
+    if (state.core.classifyTask('写一个 Web 爬虫') !== 1) problems.push('classify react failed')
+    if (state.core.classifyTask('修复崩溃') !== 0) problems.push('classify spec failed')
+    return { ok: problems.length === 0, problems }
+  }
+  return { state, dispose: sub, selftest, core }
+}
+
+function agentModelOf(ctx: any): string {
+  try { return ctx.get('agent')?.options?.model ?? '' } catch { return '' }
+}
+
+/** 从 SessionView + RouterCore 派生 persona（spec §6 快照卡人设摘要用）。 */
+export function personaOf(s: SessionView, core: RouterCore): string {
+  try { return core.personaFor(s.mode, s.model ?? '') } catch { return '' }
+}
+
+/** 从 SessionView + RouterCore 派生首轮核心工具名（spec §6 快照卡用）。 */
+export function coreNamesOf(s: SessionView, core: RouterCore): string[] {
+  try { return core.coreFor(s.mode) } catch { return [] }
+}

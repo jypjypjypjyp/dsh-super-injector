@@ -5,7 +5,7 @@ import { cpSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveRouterCore, sha256, RouterTimeline, RouterObserverState, type RouterTimelineEvent, type RouterCore } from './router-observer.ts'
+import { resolveRouterCore, sha256, RouterTimeline, RouterObserverState, createRouterObserver, type RouterTimelineEvent, type RouterCore } from './router-observer.ts'
 
 test('sha256 returns hex digest', () => {
   const h = sha256('abc')
@@ -107,4 +107,12 @@ test('calibrate mode-only sets source calibrated + pushes event', () => {
   assert.equal(ev.source, 'calibrated')
   assert.equal(ev.mode, 0)
   assert.equal(ev.override, 0)
+})
+
+test('createObserver derives route from user message event', async () => {
+  const { state } = await createRouterObserver({ on: () => () => {}, get: () => undefined })
+  state.route('s1', 1, 'deepseek-v4-flash-0731-anthropic')
+  const s = state.snapshot('s1')!
+  assert.equal(s.band, 'react')
+  assert.equal(s.mode, 1)
 })
