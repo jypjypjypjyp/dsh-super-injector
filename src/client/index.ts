@@ -1,7 +1,7 @@
 /**
  * dsh-super-injector 浏览器端：
- *   - 插件管理 UI 作为官方 Plugins settings section 的一个 tab 注册
- *     （id `super-injector`，label「插件管理」），与官方「插件列表」tab 并列。
+ *   - 插件管理 UI 作为官方“插件配置”页的一张 `settings.plugin.item` 卡片
+ *     （key `super-injector`），与终端/网页搜索等配置卡片并列。
  *   - 路由观测（Router Observer）：better-sidebar 可用时挂 sidebar tab；
  *     否则在设置页挂一个只读 fallback section。
  * 通信：同源 fetch → host webServer API（/super-injector/api）。
@@ -19,15 +19,13 @@ type ClientContext = {
 export const inject = ['slots']
 
 export function apply(ctx: ClientContext): void {
-  // 插件管理：贡献到官方 Plugins settings section 的 tab（与官方“插件列表”并列）。
-  ctx.effect(() => ctx.slots.inject('settings.plugins.tab', () =>
+  // 插件管理：注册为官方“插件配置”页的卡片（Host 已注册同 key namespace）。
+  ctx.effect(() => ctx.slots.inject('settings.plugin.item', () =>
     ctx.slots.register({
-      name: 'settings.plugins.tab',
-      id: 'super-injector',
-      order: 20,
-      label: () => '插件管理',
+      name: 'settings.plugin.item',
+      key: 'super-injector',
     }, PluginManagerTab),
-  ), 'super-injector: plugins management tab')
+  ), 'super-injector: plugins management card')
 
   // ── 路由观测（Router Observer）──
   // D5: 不把 betterSidebar 放进必需 inject；用 ctx.get 可选挂载（未装时返回 undefined）。

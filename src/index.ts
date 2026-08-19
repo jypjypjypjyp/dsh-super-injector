@@ -493,7 +493,7 @@ type AppContext = Context & {
 }
 
 export const name = 'dsh-super-injector'
-export const inject = ['loader', 'timer', 'tools', 'systemPrompt', 'webServer']
+export const inject = ['loader', 'timer', 'tools', 'systemPrompt', 'webServer', 'settings']
 
 export interface Config {
   /** 注入清单文件路径（缺省 ~/.dsh/super-injector/registry.json）。 */
@@ -569,6 +569,18 @@ function withOpLock<T>(fn: () => Promise<T> | T): Promise<T> {
 }
 
 export function apply(ctx: AppContext, config: Config): void {
+  // Host 侧注册一个空 settings namespace：让官方“插件配置”tab 枚举到
+  // `super-injector`，从而把自定义“插件管理”卡片显示在配置卡片列表里。
+  // 插件管理是操作型 UI（注入/卸载），不写入任何配置字段；空 schema 只用于
+  // 让 namespace 被 serve，Client 侧自定义卡片负责实际渲染。
+  ctx.effect(() => {
+    try {
+      ctx.settings.register('super-injector', z.object({}), { applies: 'live' })
+    } catch (error) {
+      ctx.logger?.warn?.('super-injector: settings namespace register failed: %s', String(error))
+    }
+  }, 'super-injector: settings namespace')
+
   const logger = ctx.logger
   // ⚠️ DSH_HOME 优先（实测踩坑）：部署的 web 进程 homedir 可能与 DSH_HOME 指向
   // 不同用户（如服务账户/另一用户 profile），homedir() 推导的路径会全部错位——
