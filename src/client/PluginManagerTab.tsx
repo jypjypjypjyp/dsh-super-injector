@@ -25,30 +25,36 @@ interface ListStats {
 }
 
 const styles = `
-.spi-card{border:1px solid var(--dsw-alias-border-l2, #333);border-radius:10px;overflow:hidden}
-.spi-head{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;box-sizing:border-box;background:transparent;border:0;color:var(--dsw-alias-label-primary,#ddd);cursor:pointer;font:inherit;text-align:left}
-.spi-head .spi-title{font-size:13px;font-weight:600}
-.spi-head .spi-desc{color:var(--dsw-alias-label-tertiary,#888);font-size:11px;margin-top:2px}
-.spi-head .spi-chev{flex:none;margin-left:auto;color:var(--dsw-alias-label-tertiary,#888);transition:transform .15s ease}
+.spi-card{border:1px solid var(--dsw-alias-border-l2,#333);border-radius:12px;overflow:hidden;background:var(--dsw-alias-bg-layer-1,#1e2130)}
+.spi-head{display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;box-sizing:border-box;background:transparent;border:0;color:var(--dsw-alias-label-primary,#eee);cursor:pointer;font:inherit;text-align:left}
+.spi-head:hover{background:var(--dsw-alias-bg-fill-neutral,rgba(255,255,255,.03))}
+.spi-head .spi-title{font-size:14px;font-weight:600}
+.spi-head .spi-desc{color:var(--dsw-alias-state-warn-primary,#e8a87c);font-size:12px;margin-top:2px}
+.spi-head .spi-chev{flex:none;margin-left:auto;color:var(--dsw-alias-label-tertiary,#888);font-size:10px;transition:transform .15s ease}
 .spi-head .spi-chev.open{transform:rotate(180deg)}
-.spi-body{padding:0 14px 14px;border-top:1px solid var(--theme-border,#333)}
-.spi-add{border:1.5px dashed var(--theme-border,#555);border-radius:8px;padding:12px;margin:14px 0 12px;text-align:center;color:var(--theme-text-secondary,#999)}
-.spi-add.drag{border-color:var(--theme-accent,#4a9eff);background:rgba(74,158,255,.08)}
-.spi-row{display:flex;gap:6px;margin-top:10px}
-.spi-input{flex:1;background:var(--theme-input-bg,#111);color:var(--theme-text,#ddd);border:1px solid var(--theme-border,#333);border-radius:6px;padding:6px 8px;font-size:12px}
-.spi-btn{background:var(--theme-accent,#4a9eff);color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;white-space:nowrap}
-.spi-btn.ghost{background:transparent;border:1px solid var(--theme-border,#444);color:var(--theme-text,#ccc)}
+.spi-body{padding:2px 16px 16px;border-top:1px solid var(--dsw-alias-border-l2,#333)}
+.spi-stats{color:var(--dsw-alias-label-tertiary,#aaa);font-size:12px;margin:12px 0}
+.spi-field{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-bottom:1px solid var(--dsw-alias-border-l2,#333)}
+.spi-field:last-of-type{border-bottom:0}
+.spi-label{font-size:13px;color:var(--dsw-alias-label-primary,#eee);font-weight:500}
+.spi-input{width:100%;box-sizing:border-box;background:var(--dsw-alias-input-bg,#14161f);color:var(--dsw-alias-label-primary,#fff);border:1px solid var(--dsw-alias-border-l2,#333);border-radius:6px;padding:7px 10px;font-size:13px}
+.spi-input:focus{outline:2px solid var(--dsw-alias-state-business-primary,#4a9eff);outline-offset:1px}
+.spi-hint{color:var(--dsw-alias-state-warn-primary,#e8a87c);font-size:12px;margin:0}
+.spi-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 0 0}
+.spi-btn{background:transparent;border:1px solid var(--dsw-alias-border-l2,#555);color:var(--dsw-alias-label-primary,#eee);border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;white-space:nowrap}
+.spi-btn:hover{background:var(--dsw-alias-bg-fill-neutral,rgba(255,255,255,.06))}
+.spi-btn.primary{background:var(--dsw-alias-label-primary,#eee);color:var(--dsw-alias-bg-layer-1,#1e2130);border-color:transparent}
+.spi-btn.primary:hover{opacity:.9}
 .spi-btn.danger{background:transparent;border:1px solid #d33;color:#d33}
 .spi-btn:disabled{opacity:.45;cursor:not-allowed}
 .spi-list{list-style:none;margin:0;padding:0}
-.spi-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--theme-border,#333);border-radius:8px;margin-bottom:6px}
+.spi-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2,#333);border-radius:8px;margin-bottom:6px}
 .spi-item .name{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .spi-item .dir{color:var(--theme-text-secondary,#888);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40%}
 .spi-item .st{font-size:10px;padding:2px 6px;border-radius:10px}
 .spi-item .st.on{background:rgba(46,204,113,.15);color:#2ecc71}
 .spi-item .st.off{background:rgba(255,193,7,.12);color:#f1c40f}
-.spi-msg{margin-top:10px;padding:8px 10px;border-radius:6px;background:var(--theme-input-bg,#111);border:1px solid var(--theme-border,#333);white-space:pre-wrap;max-height:180px;overflow:auto;font-size:11px}
-.spi-stats{color:var(--theme-text-secondary,#888);font-size:11px;margin:10px 0}
+.spi-msg{margin-top:10px;padding:8px 10px;border-radius:6px;background:var(--theme-input-bg,#111);border:1px solid var(--theme-border,#333);white-space:pre-wrap;max-height:180px;overflow:auto;font-size:12px}
 `
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -140,8 +146,8 @@ export function PluginManagerTab(): React.JSX.Element {
         onClick={() => setOpen((v) => !v)}
       >
         <span>
-          <span className="spi-title">插件管理</span>
-          <span className="spi-desc">运行时注入的本地插件：直接注入 / 内化 / 卸载</span>
+          <span className="spi-title">Super Injector</span>
+          <span className="spi-desc">运行时注入本地 DSH 插件：直接注入 / 内化 / 卸载</span>
         </span>
         <span className={'spi-chev' + (open ? ' open' : '')}>▼</span>
       </button>
@@ -149,50 +155,54 @@ export function PluginManagerTab(): React.JSX.Element {
       {open && (
         <div className="spi-body">
           <p className="spi-stats">{stats}</p>
-          <div
-            className={'spi-add' + (drag ? ' drag' : '')}
-            onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setDrag(false)
-              setPath('')
-              setMsg({ text: '浏览器无法读取拖入文件夹的绝对路径——请粘贴路径或使用选择器', isErr: false })
-            }}
-          >
-            拖入文件夹，或输入路径——「内化」= 新建会话让 AI 把内容变成插件；「注入」= 目录已是插件包直接注入
-            <div className="spi-row">
-              <input
-                className="spi-input"
-                placeholder="D:/path/to/folder"
-                value={path}
-                onChange={(e) => setPath(e.target.value)}
-              />
+
+          <div className="spi-field">
+            <label className="spi-label" htmlFor="super-injector-path">插件路径</label>
+            <input
+              id="super-injector-path"
+              className="spi-input"
+              placeholder="D:/path/to/folder"
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDrag(false)
+                setPath('')
+                setMsg({ text: '浏览器无法读取拖入文件夹的绝对路径——请粘贴路径或使用选择器', isErr: false })
+              }}
+            />
+            <p className="spi-hint">拖入文件夹，或输入路径——「内化」= 新建会话让 AI 把内容变成插件；「注入」= 目录已是插件包直接注入</p>
+            <div className="spi-actions">
               <button className="spi-btn" disabled={busy} onClick={() => { void doAction('/ingest', '内化插件') }}>
                 {busy ? '处理中…' : '内化（AI 造插件）'}
               </button>
-              <button className="spi-btn ghost" disabled={busy} onClick={() => { void doAction('/inject', '直接注入') }}>
+              <button className="spi-btn primary" disabled={busy} onClick={() => { void doAction('/inject', '直接注入') }}>
                 {busy ? '处理中…' : '直接注入'}
               </button>
             </div>
           </div>
 
-          <ul className="spi-list">
-            {entries.length === 0 ? (
-              <li className="spi-item">（暂无注入插件——展开后输入路径或拖入文件夹开始）</li>
-            ) : (
-              entries.map((e) => (
-                <li key={e.name + e.dir} className="spi-item">
-                  <span className="name">{e.name}</span>
-                  <span className="dir">{e.dir}</span>
-                  <span className={'st ' + (e.active ? 'on' : 'off')}>{e.active ? '运行中' : '未激活'}</span>
-                  <button className="spi-btn danger" onClick={() => { void uninstall(e.name) }}>
-                    卸载
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
+          <div className="spi-field">
+            <span className="spi-label">已注入插件</span>
+            <ul className="spi-list">
+              {entries.length === 0 ? (
+                <li className="spi-item">（暂无注入插件——输入路径或拖入文件夹开始）</li>
+              ) : (
+                entries.map((e) => (
+                  <li key={e.name + e.dir} className="spi-item">
+                    <span className="name">{e.name}</span>
+                    <span className="dir">{e.dir}</span>
+                    <span className={'st ' + (e.active ? 'on' : 'off')}>{e.active ? '运行中' : '未激活'}</span>
+                    <button className="spi-btn danger" onClick={() => { void uninstall(e.name) }}>
+                      卸载
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
 
           {msg && (
             <div
