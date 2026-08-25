@@ -1,4 +1,4 @@
-// Router Observer client 构建器：esbuild CJS + ModuleLoader wrapper（vqa-dual-agent 同款契约）。
+// Router Observer client 构建器：esbuild CJS + ModuleLoader wrapper。
 // 关键：DSH ClientModuleLoader 的 require 只解析 seed/shell/factory；react 是 platform seed word，
 // react/jsx-runtime 不是。因此 JSX 必须用 transform 模式编译为 import_react.default.createElement，
 // 且只 external react（绝不 external react/jsx-runtime）。
@@ -25,7 +25,7 @@ function resolveEsbuildBin() {
 
 export function generate({ check = false, root = ROOT } = {}) {
   const esbuildBin = resolveEsbuildBin()
-  if (esbuildBin === null) return { ok: false, errors: ['esbuild 不可用: 安装 esbuild 或提供 vqa-dual-agent 路径'] }
+  if (esbuildBin === null) return { ok: false, errors: ['esbuild 不可用: 请在仓库 node_modules 安装 esbuild'] }
   const tmpDir = mkdtempSync(join(tmpdir(), 'dsh-super-injector-'))
   const tmpOut = join(tmpDir, 'client.js')
   const res = spawnSync(esbuildBin, [
