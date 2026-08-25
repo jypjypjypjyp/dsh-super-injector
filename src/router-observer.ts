@@ -7,7 +7,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 export type RouterCoreSource = { kind: 'installed' | 'mirror'; hash: string; match: boolean }
 
 export interface RouterCore {
-  classifyTask(text: string): unknown
+  classifyTask(text: string): string | number
   bandOf(mode: unknown): string
   personaFor(mode: unknown, modelId: string): string
   coreFor(mode: unknown): string[]
@@ -16,7 +16,7 @@ export interface RouterCore {
   isComplexTask(text: string): boolean
   extractText(data: unknown): string
   sessionMode(session: unknown): unknown
-  parseMode(token: unknown): unknown
+  parseMode(token: unknown): string | number | null
 }
 
 export function sha256(input: string): string {

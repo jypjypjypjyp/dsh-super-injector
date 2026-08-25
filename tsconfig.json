@@ -8,6 +8,7 @@
     "types": ["node"],
     "declaration": true,
     "declarationDir": "lib/types",
+    "emitDeclarationOnly": true,
     "outDir": "lib",
     "rootDir": "src",
     "skipLibCheck": true,
@@ -16,5 +17,5 @@
     "sourceMap": true
   },
   "include": ["src"],
-  "exclude": ["src/client"]
+  "exclude": ["src/client", "**/*.test.ts"]
 }

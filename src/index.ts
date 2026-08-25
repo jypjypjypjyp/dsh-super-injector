@@ -32,7 +32,7 @@ import { join, relative, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL, fileURLToPath } from 'node:url'
-import { createRouterObserver, personaOf, coreNamesOf } from './router-observer'
+import { createRouterObserver, personaOf, coreNamesOf } from './router-observer.js'
 
 // ═══════════════════════════════════════════════════════════════════════
 // A: 插件生产线模板（dev_scaffold_plugin）——四种形态骨架：
@@ -489,6 +489,7 @@ type AppContext = Context & {
   systemPrompt: SystemPrompt
   webServer: any
   registry: any
+  settings: any
   setInterval(fn: () => void, ms: number): any
 }
 
@@ -579,6 +580,7 @@ export function apply(ctx: AppContext, config: Config): void {
     } catch (error) {
       ctx.logger?.warn?.('super-injector: settings namespace register failed: %s', String(error))
     }
+    return () => {}
   }, 'super-injector: settings namespace')
 
   const logger = ctx.logger
@@ -607,7 +609,7 @@ export function apply(ctx: AppContext, config: Config): void {
       disposeRouter = null
     }
   }, 'router-observer: dispose')
-  void createRouterObserver(ctx).then((obs) => {
+  void createRouterObserver(ctx).then((obs: Awaited<ReturnType<typeof createRouterObserver>>) => {
     if (disposed) {
       // await 窗口内已被 dispose：立即清理订阅，不再注册。
       obs.dispose()
@@ -616,7 +618,7 @@ export function apply(ctx: AppContext, config: Config): void {
     routerObs = obs
     disposeRouter = () => obs.dispose()
     ctx.effect(() => obs.dispose, 'router-observer: events')
-  }).catch((e) => void ctx.logger?.error('router-observer: init failed: %s', String(e)))
+  }).catch((e: unknown) => void ctx.logger?.error('router-observer: init failed: %s', String(e)))
 
   // ============ 注入清单 ============
   function readRegistry(): RegistryEntry[] {
@@ -3040,7 +3042,7 @@ export function apply(ctx: AppContext, config: Config): void {
         }, null, 2) + '\n', 'utf8')
         writeFileSync(join(tmpDir, 'tsconfig.json'), '{\n  "compilerOptions": {\n    "target": "ES2023", "module": "NodeNext", "moduleResolution": "NodeNext", "lib": ["ES2023"],\n    "strict": true, "types": ["node"], "declaration": true, "declarationDir": "lib/types",\n    "outDir": "lib", "rootDir": "src", "skipLibCheck": true, "esModuleInterop": true,\n    "sourceMap": true\n  },\n  "include": ["src"]\n}\n', 'utf8')
         writeFileSync(join(tmpDir, 'src', 'index.ts'), `import type { Context } from 'cordis'\nimport { defineTool } from '@deepseek-ai/dsh-tools'\nexport const name = ${JSON.stringify(TEST_PKG)}\nexport const inject = ['tools']\nexport function apply(ctx: Context): void {\n  ctx.effect(() => ctx.tools.register(defineTool({\n    name: 'self_test_hello',\n    description: 'self test',\n    parameters: {},\n    output: { schema: { type: 'string' }, render: (_a: unknown, v: unknown) => [{ type: 'text', text: String(v) }] },\n    async execute() { return 'hello' },\n  })), 'self-test')\n}\n`, 'utf8')
-        writeFileSync(join(tmpDir, 'scripts', 'build.sh'), `#!/bin/bash\nset -euo pipefail\nROOT="$(cd "$(dirname "$0")/.." && pwd)"\ncd "$ROOT"\nCHECKOUT="\${DSH_CHECKOUT:-}"\nif [ -z "$CHECKOUT" ] || [ ! -d "$CHECKOUT/packages" ]; then echo "no checkout" >&2; exit 1; fi\nTSC="$CHECKOUT/node_modules/.bin/tsc"\nlink_pkg() {\n  node -e "const fs=require('fs');const path=require('path');const l=path.resolve(process.argv[1]);const t=path.resolve(process.argv[2]);fs.rmSync(l,{recursive:true,force:true});fs.mkdirSync(path.dirname(l),{recursive:true});fs.symlinkSync(t,l,process.platform==='win32'?'junction':'dir');" "node_modules/$1" "$2"\n}\nmkdir -p node_modules/@deepseek-ai\nnode -e "const fs=require('fs');fs.rmSync('node_modules/@standard-schema',{recursive:true,force:true})"\nlink_pkg cordis "$CHECKOUT/vendor/cordis"\nlink_pkg cosmokit "$CHECKOUT/vendor/cosmokit"\nlink_pkg schemastery "$CHECKOUT/vendor/schemastery"\nlink_pkg @deepseek-ai/dsh-tools "$CHECKOUT/packages/core/tools"\nlink_pkg @types/node "$CHECKOUT/node_modules/@types/node"\n"$TSC" -p tsconfig.json\n`, 'utf8')
+        writeFileSync(join(tmpDir, 'scripts', 'build.sh'), `#!/bin/bash\nset -euo pipefail\nROOT="$(cd "$(dirname "$0")/.." && pwd)"\ncd "$ROOT"\nCHECKOUT="\${DSH_CHECKOUT:-}"\nif [ -z "$CHECKOUT" ] || [ ! -d "$CHECKOUT/packages" ]; then echo "no checkout" >&2; exit 1; fi\nFRAMEWORK=""\nfor d in "$HOME/.npm/_npx"/*/node_modules "$HOME/.dsh/profiles"/*/node_modules; do\n  if [ -d "$d/@deepseek-ai/dsh-tools" ]; then FRAMEWORK="$(dirname "$d")"; break; fi\ndone\nif [ -z "$FRAMEWORK" ]; then echo "no framework (prebuilt dsh install)" >&2; exit 1; fi\nFRAMEWORK_NM="$FRAMEWORK/node_modules"\necho "framework: $FRAMEWORK"\nTSC="$CHECKOUT/node_modules/.bin/tsc"\nlink_pkg() {\n  node -e "const fs=require('fs');const path=require('path');const l=path.resolve(process.argv[1]);const t=path.resolve(process.argv[2]);fs.rmSync(l,{recursive:true,force:true});fs.mkdirSync(path.dirname(l),{recursive:true});fs.symlinkSync(t,l,process.platform==='win32'?'junction':'dir');" "node_modules/$1" "$2"\n}\nmkdir -p node_modules/@deepseek-ai\nlink_pkg cordis "$FRAMEWORK_NM/@deepseek-ai/cordis"\nlink_pkg cosmokit "$FRAMEWORK_NM/@deepseek-ai/cosmokit"\nlink_pkg schemastery "$FRAMEWORK_NM/@deepseek-ai/schemastery"\nlink_pkg @deepseek-ai/dsh-tools "$FRAMEWORK_NM/@deepseek-ai/dsh-tools"\nlink_pkg @types/node "$CHECKOUT/node_modules/@types/node"\n"$TSC" -p tsconfig.json\n`, 'utf8')
         const checkout = detectCheckout()
         if (!checkout) { check('checkout 探测', false, '无 DSH_CHECKOUT'); return summarize(results) }
         // ── 2. 构建测试插件 ──
@@ -3052,7 +3054,8 @@ export function apply(ctx: AppContext, config: Config): void {
         buildEnv.PATH = [bashBinDir, dirname(process.execPath), process.env.PATH ?? ''].filter(Boolean).join(sep)
         const br = runCmd(bash, ['scripts/build.sh'], tmpDir, buildEnv)
         const libBuilt = existsSync(join(tmpDir, 'lib', 'index.js'))
-        check('测试插件构建', br !== null && br.code === 0 && libBuilt, br && br.code !== 0 ? br.output.slice(-300) : (libBuilt ? '' : 'lib/index.js 未生成'))
+        const fw = (br?.output.match(/framework: (\S+)/)?.[1] ?? '')
+        check('测试插件构建', br !== null && br.code === 0 && libBuilt, br && br.code !== 0 ? br.output.slice(-300) : (libBuilt ? `framework=${fw}` : 'lib/index.js 未生成'))
         if (!br || br.code !== 0 || !libBuilt) return summarize(results)
         // ── 3. 注入 → host ✓ ──
         // ⚠️ 先清理上次自检可能的残留（整体 FAIL 中断时 finally 不一定跑完——
@@ -3314,7 +3317,7 @@ export function apply(ctx: AppContext, config: Config): void {
         }
         if (req.method === 'GET' && path === '/router/sessions') {
           // 只返回摘要字段，不返回整条 timeline 缓冲（避免列表载荷膨胀）。
-          const sessions = routerObs.state.sessions().map((s) => ({
+          const sessions = routerObs!.state.sessions().map((s: import('./router-observer.js').SessionView) => ({
             sessionId: s.sessionId, mode: s.mode, band: s.band, override: s.override,
             confidence: s.confidence, observed: s.observed, processed: s.processed,
             drift: s.drift, lastEventAt: s.lastEventAt, source: s.source,
@@ -3323,29 +3326,29 @@ export function apply(ctx: AppContext, config: Config): void {
         }
         if (req.method === 'GET' && path === '/router/status') {
           const sid = url.searchParams.get('sessionId') || ''
-          const s = routerObs.state.snapshot(sid)
+          const s = routerObs!.state.snapshot(sid)
           if (!s) return send(404, { ok: false, error: 'no session' })
           return send(200, { ok: true, status: {
             mode: s.mode, band: s.band,
-            persona: personaOf(s, routerObs.core),
-            core: coreNamesOf(s, routerObs.core),
+            persona: personaOf(s, routerObs!.core),
+            core: coreNamesOf(s, routerObs!.core),
             override: s.override, source: s.source, confidence: s.confidence,
           } })
         }
         if (req.method === 'GET' && path === '/router/timeline') {
           const sid = url.searchParams.get('sessionId') || ''
-          const s = routerObs.state.snapshot(sid)
+          const s = routerObs!.state.snapshot(sid)
           if (!s) return send(404, { ok: false, error: 'no session' })
           return send(200, { ok: true, timeline: s.timeline.snapshot(), windowStart: s.timeline.windowStart })
         }
         if (req.method === 'GET' && path === '/router/debug') {
           const sid = url.searchParams.get('sessionId') || ''
-          const debug = routerObs.state.debug(sid)
+          const debug = routerObs!.state.debug(sid)
           if (debug === null) return send(404, { ok: false, error: 'no session' })
           return send(200, { ok: true, debug })
         }
         if (req.method === 'GET' && path === '/router/selftest') {
-          return send(200, { ok: true, selftest: await routerObs.selftest() })
+          return send(200, { ok: true, selftest: await routerObs!.selftest() })
         }
         return send(404, { ok: false, error: 'not found: ' + path })
       } catch (e) {

@@ -5,7 +5,7 @@ import { cpSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveRouterCore, sha256, RouterTimeline, RouterObserverState, createRouterObserver, type RouterTimelineEvent, type RouterCore } from './router-observer.ts'
+import { resolveRouterCore, sha256, RouterTimeline, RouterObserverState, createRouterObserver, type RouterTimelineEvent, type RouterCore } from './router-observer.js'
 
 test('sha256 returns hex digest', () => {
   const h = sha256('abc')
@@ -78,7 +78,7 @@ const stubCore: RouterCore = {
   isComplexTask: () => false,
   extractText: (d) => String(d),
   sessionMode: () => 'weak',
-  parseMode: (t) => (t === 'auto' ? 'auto' : t),
+  parseMode: (t) => (t === 'auto' ? 'auto' : String(t)),
 }
 
 test('drift produces a unique monotonic seq', () => {
