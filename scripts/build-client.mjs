@@ -16,7 +16,6 @@ function resolveEsbuildBin() {
   const candidates = [
     join(ROOT, 'node_modules/.bin/esbuild'),
     join(ROOT, 'node_modules/esbuild/bin/esbuild'),
-    '/Users/a1234/Library/CloudStorage/OneDrive-个人/Documents/鲸鱼娘/vqa-dual-agent/node_modules/.bin/esbuild',
   ]
   for (const c of candidates) {
     try { if (statSync(c).isFile()) return c } catch { /* next */ }
