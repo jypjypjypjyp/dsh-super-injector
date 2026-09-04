@@ -9,6 +9,7 @@
  * 操作型 UI（注入/卸载），不写入 settings 字段，因此不包含保存/丢弃表单。
  */
 import React, { useEffect, useState } from 'react'
+import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 
 const API = '/super-injector/api'
 
@@ -154,7 +155,7 @@ export function PluginManagerTab(): React.JSX.Element {
           <span className="spi-title">Super Injector</span>
           <span className="spi-desc">运行时注入本地 DSH 插件：直接注入 / 内化 / 卸载</span>
         </span>
-        <span className={'spi-chev' + (open ? ' open' : '')}>▼</span>
+        <IconChevronDownOutline14 className={'spi-chev' + (open ? ' open' : '')} />
       </button>
 
       {open && (
