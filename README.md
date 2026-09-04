@@ -252,7 +252,8 @@ minimal 99/96 vs standard 91 vs 两阶段 98/99、触发机制微探针、轨迹
 DSH-better-sidebar 侧边栏「路由」tab：实时查看思维模式路由（router-standard / router-spec）的当前快照与时间线。
 
 - **数据来源**：passive observer 旁路重算——订阅 session 事件流，用 `router-core` 纯函数即时重算 route / promote / tool / guide 事件；不 invoke `dev_router_status`、不污染 agent 上下文。
-- **实时**：tab 可见时 2s 短轮询；面板隐藏自动暂停（DSH-better-sidebar 的 `visible` 约定）。未装 better-sidebar 时降级为设置页只读入口。
+- **实时**：tab 可见时 2s 短轮询；面板隐藏自动暂停（DSH-better-sidebar 的 `visible` 约定）。
+- **挂载方式**：客户端把 `betterSidebar` 声明为 `inject` 硬依赖——cordis 在该服务被 `provide` 时才 apply，天然免“先探后登”的时序竞态；未装 better-sidebar 时不再降级到设置页（无 fallback）。
 - **API**（挂在 `/super-injector/api` 前缀下）：
   - `GET /router/sessions` — 会话列表（含 confidence / observed / processed / drift）
   - `GET /router/status?sessionId=` — 当前快照（mode / band / persona / core / override / source / confidence）

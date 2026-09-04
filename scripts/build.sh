@@ -11,10 +11,15 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 # ── 1. Locate a prebuilt DSH framework root (has node_modules/@deepseek-ai/dsh-tools) ──
-FRAMEWORK=""
-for d in "$HOME/.npm/_npx"/*/node_modules "$HOME/.dsh/profiles"/*/node_modules; do
-  if [ -d "$d/@deepseek-ai/dsh-tools" ]; then FRAMEWORK="$(dirname "$d")"; break; fi
-done
+# 环境变量 FRAMEWORK 优先；再探测 npx 缓存（含 dsh 包内嵌套 node_modules）/ profile / 全局安装。
+FRAMEWORK="${FRAMEWORK:-}"
+if [ -z "$FRAMEWORK" ]; then
+  # dsh CLI 本体（fnm/nvm 全局安装）：realpath 后上溯两级 = @deepseek-ai/dsh 包根
+  DSH_REAL="$(realpath "$(command -v dsh 2>/dev/null)" 2>/dev/null || true)"
+  for d in "$HOME/.npm/_npx"/*/node_modules "$HOME/.npm/_npx"/*/node_modules/@deepseek-ai/dsh/node_modules "$HOME/.dsh/profiles"/*/node_modules "${DSH_REAL:+$(dirname "$(dirname "$DSH_REAL")")/node_modules}"; do
+    if [ -d "$d/@deepseek-ai/dsh-tools" ]; then FRAMEWORK="$(dirname "$d")"; break; fi
+  done
+fi
 if [ -z "$FRAMEWORK" ]; then
   echo "build: cannot locate a prebuilt DSH install (npx cache / profile) for build deps" >&2
   echo "       hint: run DSH once so its core is installed, or set FRAMEWORK" >&2

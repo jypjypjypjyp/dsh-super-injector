@@ -1982,15 +1982,24 @@ export function apply(ctx: AppContext, config: Config): void {
     const scoped = pkgName.startsWith('@')
     const parts = scoped ? pkgName.split('/') : [pkgName]
     const linkDir = join(profileNodeModules, ...parts)
+    // ⚠️ 包本体已在链接位（realpath 相同，如直接传 profile node_modules 下的
+    // 真实包目录）：绝不能走下方 rmSync「重建」——isHealthyLink 对非链接的
+    // 真实目录返回 false，会把真实包目录整删再留下自指死链（2026-09-04
+    // dsh-advisor@0.2.4 数据丢失根因）。real dir 本身可直接被 loader 解析，
+    // 跳过 junction 处理即可。
+    let samePath = false
+    try { samePath = realpathSync(absDir) === realpathSync(linkDir) } catch { /* 链接位不存在 → 走正常建链 */ }
     try {
-      let linkExists = false
-      try { linkExists = lstatSync(linkDir).isSymbolicLink() || lstatSync(linkDir).isDirectory() } catch { /* 不存在 */ }
-      if (!linkExists || !isHealthyLink(linkDir)) {
-        if (linkExists) {
-          try { rmSync(linkDir, { recursive: true, force: true }) } catch { /* 删除失败尝试覆盖 */ }
+      if (!samePath) {
+        let linkExists = false
+        try { linkExists = lstatSync(linkDir).isSymbolicLink() || lstatSync(linkDir).isDirectory() } catch { /* 不存在 */ }
+        if (!linkExists || !isHealthyLink(linkDir)) {
+          if (linkExists) {
+            try { rmSync(linkDir, { recursive: true, force: true }) } catch { /* 删除失败尝试覆盖 */ }
+          }
+          mkdirSync(dirname(linkDir), { recursive: true })
+          symlinkSync(absDir, linkDir, 'junction')
         }
-        mkdirSync(dirname(linkDir), { recursive: true })
-        symlinkSync(absDir, linkDir, 'junction')
       }
     } catch (e) {
       return `ERROR: 建立 junction 失败（${linkDir}）: ${String(e)}`
@@ -2120,8 +2129,13 @@ export function apply(ctx: AppContext, config: Config): void {
    * 等设置页卡片被误判为坏骨架；同时白名单外的陌生 slot 名仍视为异常，防 typo。 */
   const KNOWN_SLOTS = ['conversation.view', 'settings.plugin.item', 'settings.plugins.tab', 'settings.section', 'settings.general.item', 'conversation.session.header.actions', 'conversation.session.header.utilities', 'conversation.input.dock', 'conversation.composer.dock', 'sidebar.footer.action', 'shell.overlay']
   const SLOT_ALT = KNOWN_SLOTS.map((s) => s.replace(/\./g, '\\.')).join('|')
-  const REGISTER_NAME = new RegExp(`register\\(\\{[\\s\\S]*?name:\\s*['"](${SLOT_ALT})['"]`)
+  const REGISTER_NAME = new RegExp(`register\\(\\{[\\s\\S]*?name:\\s*['"\`](${SLOT_ALT})['"\`]`)
 
+  // 检测 client 是否真用 slots 服务（ctx.slots.inject / ctx.slots.register 等）。
+  // ⚠️ 2026-08 修正：原实现在「有 client 的插件」上无条件要求 inject:['slots'] + 合法
+  // register——对「非 slots 功能型 client」（纯 DOM/SSE，如 dsh-notifier 的通知显示）
+  // 是误判拦截。仅当 client 实际使用 ctx.slots 时才要求 slots 声明与合法 register。
+  const clientUsesSlots = (code: string) => /(?:ctx\.)?slots\s*\.(?:inject|register|get|has)\b/.test(code)
   function clientSkeletonProblems(base: string): string[] {
     const problems: string[] = []
     try {
@@ -2130,10 +2144,10 @@ export function apply(ctx: AppContext, config: Config): void {
       const libClient = join(base, 'lib', 'client.js')
       if (existsSync(libClient)) {
         const lib = readFileSync(libClient, 'utf8')
-        if (!/inject\s*=\s*\[[^\]]*['"]slots['"]/.test(lib) && !/inject\s*:\s*\[[^\]]*['"]slots['"]/.test(lib)) {
+        if (clientUsesSlots(lib) && !/inject\s*=\s*\[[^\]]*['"`]slots['"`]/.test(lib) && !/inject\s*:\s*\[[^\]]*['"`]slots['"`]/.test(lib)) {
           problems.push('lib/client.js 缺 inject 含 slots（apply 用 ctx.slots 必须声明——cordis 服务注入契约）')
         }
-        if (!REGISTER_NAME.test(lib)) {
+        if (clientUsesSlots(lib) && !REGISTER_NAME.test(lib)) {
           problems.push(`lib/client.js 的 register 缺合法 name（应为已知 slot：${KNOWN_SLOTS.join(' / ')}）`)
         }
       }
@@ -2141,10 +2155,10 @@ export function apply(ctx: AppContext, config: Config): void {
       const clientSrcPath = join(base, 'src', 'client', 'index.ts')
       if (existsSync(clientSrcPath)) {
         const src = readFileSync(clientSrcPath, 'utf8')
-        if (!/export const inject\s*=\s*\[[^\]]*['"]slots['"]/.test(src)) {
+        if (clientUsesSlots(src) && !/export const inject\s*=\s*\[[^\]]*['"`]slots['"`]/.test(src)) {
           problems.push("src/client/index.ts 缺 export const inject = ['slots']（apply 用 ctx.slots 必须声明，否则报 cannot get property 'slots' without inject）")
         }
-        if (!REGISTER_NAME.test(src)) {
+        if (clientUsesSlots(src) && !REGISTER_NAME.test(src)) {
           problems.push(`slots.register 缺合法 name（应为已知 slot：${KNOWN_SLOTS.join(' / ')}——缺了报 slot undefined is not declared）`)
         }
       }

@@ -5,6 +5,16 @@
 > **版本以 git tag 为准**：已发布 v0.3.1 / v0.3.3（GitHub Releases 资产）；未打 tag 的
 > 小节为开发史（其内容随下一个发布一并交付）。
 
+## [Unreleased]
+
+### 变更（客户端 Router Observer 挂载方式）
+
+- **去掉「路由观测」设置页降级 fallback**：`betterSidebar` 改声明为客户端 `inject`
+  硬依赖（公共 cordis 机制，服务被 `provide` 时才 apply）。消除一次性 `ctx.get`
+  探测的加载顺序竞态，不再在设置页挂只读「路由观测」section。
+- 代价：super-injector 客户端 bundle（含「插件管理」卡片与「路由」tab）现要求
+  better-sidebar 已装配；未装配时该客户端不渲染（host 侧 `dev_*` 工具不受影响）。
+
 ## [0.3.3] — 2026-08-15（已发布，git tag v0.3.3）
 
 ### 更新（高性能引导升级为 P1-P23 完整认知）
