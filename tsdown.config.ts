@@ -1,7 +1,14 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { UserConfig } from 'tsdown'
 
-const PLUGIN_ID = '@jypjypjypjyp/dsh-super-injector'
+// The browser client-modules loader associates the bundle by package name,
+// so the wrapper id must BE package.json `name` — read it instead of
+// restating it, so a rename cannot leave the client half registering a
+// stale id (mismatch fails the loader entry import in the browser only).
+const PLUGIN_ID = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
+).name as string
 
 const CLIENT_EXTERNALS = [
   'react', 'react/jsx-runtime', 'react-dom', 'react-dom/client',
