@@ -1,5 +1,7 @@
 # dsh-super-injector — 超级模组注入器
 
+> 🍴 Fork 自 [yjh051108/dsh-super-injector](https://github.com/yjh051108/dsh-super-injector)（原包 `@dsh-external/dsh-super-injector`），本仓库以 `@jypjypjypjyp/dsh-super-injector` 继续维护。
+
 > ## 🎉 v0.3.0 重大声明（2026-08-14）
 >
 > **从经验补丁到源码契约——注入器完成规范重构。**
@@ -29,7 +31,7 @@ DSH 生态的 **BepInEx 式模组注入入口**：运行时把任意本地插件
 
 ### 方式 A：Release 包（推荐，免构建）
 
-从 [Releases](https://github.com/yjh051108/dsh-super-injector/releases) 下载
+从 [Releases](https://github.com/jypjypjypjyp/dsh-super-injector/releases) 下载
 `dsh-external-dsh-super-injector-0.0.1.tgz`，解压得到插件目录（含 `lib/` 与 `cordis.patch.yml`），然后：
 
 ```bash
@@ -43,7 +45,7 @@ dsh plugin --profile web add <解压目录>
 ### 方式 B：git 装配
 
 ```bash
-dsh plugin --profile web add github:yjh051108/dsh-super-injector
+dsh plugin --profile web add github:jypjypjypjyp/dsh-super-injector
 ```
 
 ### 方式 C：引导装配（源码方式，只需一次）
@@ -53,7 +55,7 @@ dsh plugin --profile web add github:yjh051108/dsh-super-injector
 ```yaml
 - insert:
     - id: dsh-super-injector
-      name: '@yjh051108/dsh-super-injector'
+      name: '@jypjypjypjyp/dsh-super-injector'
       config: {}
 ```
 
@@ -202,7 +204,6 @@ export function apply(ctx: AppContext): void {
 
 **验证**：导出 session JSONL 看 `request/header`——第一份只含核心工具，首次工具调用后的下一份变更 header 含完整目录，此后保持。
 
-### 高性能引导的完整认知（v0.3.3 更新，基于 dsh-router-standard P1-P23 实测）
 
 | 机制 | 实测 | 落地 |
 |---|---|---|
@@ -213,7 +214,6 @@ export function apply(ctx: AppContext): void {
 | **单任务三锚**（回顾+收敛+反跑题） | 完成率 0%→100% | persona 静态锚 |
 | plan-mode section 保留 | 失忆修复（v6） | applyPersona 只换 persona section |
 
-完整实现与复现探针：[dsh-router-standard](https://github.com/yjh051108/dsh-router-standard)（v0.1.0，含论文与 P1-P23 全数据）。
 
 **参考与致谢**：本引导中的「首轮锚定」机制与统计证据，参考了 **xiaobright** 的开源工作——
 [`dsh-anchored-standard`](https://github.com/xiaobright/dsh-anchored-standard)（MIT，
@@ -265,5 +265,5 @@ DSH-better-sidebar 侧边栏「路由」tab：实时查看思维模式路由（r
 
 ---
 
-**仓库**：https://github.com/yjh051108/dsh-super-injector
-**Release**：https://github.com/yjh051108/dsh-super-injector/releases
+**仓库**：https://github.com/jypjypjypjyp/dsh-super-injector
+**Release**：https://github.com/jypjypjypjyp/dsh-super-injector/releases

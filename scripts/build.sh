@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build @dsh-external/dsh-super-injector as a self-contained npm package.
+# Build @jypjypjypjyp/dsh-super-injector as a self-contained npm package.
 #
 # Design: junction-link build-time deps from a PREBUILT DSH install (npx cache /
 # profile) so the framework's published types are used — no need to build the DSH

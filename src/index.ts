@@ -849,7 +849,7 @@ export function apply(ctx: AppContext, config: Config): void {
       // ⚠️ rebootCtx 用 ctx.root（loader 树根，恒活跃）：selfEntry.ctx 在自毁后
       // inactive（实测：cloud-restore 版自重载自杀后 rebuild 报 inactive context）
       const rebootCtx = ctx.root as any
-      const pkgName = selfEntry?.options?.name ?? '@dsh-external/dsh-super-injector'
+      const pkgName = selfEntry?.options?.name ?? '@jypjypjypjyp/dsh-super-injector'
       const cfg = selfEntry?.options?.config ?? {}
       const patchFile = join(dirname(profileNodeModules), 'cordis.patch.yml')
       let attempt = 0
@@ -1373,7 +1373,7 @@ export function apply(ctx: AppContext, config: Config): void {
     // 清 disabled（幽灵 entry 隔离）：热重载后 client 模块可重新注册（UI 生效）
     normalizeEntriesByName(match)
     // ⚠️ 以下 client 操作必须用**完整包名**：client-modules 的 processOne 对
-    // entry.options.name 做精确匹配（短名 ≠ '@dsh-external/...' 完整包名），
+    // entry.options.name 做精确匹配（短名 ≠ '@jypjypjypjyp/...' 完整包名），
     // 传短名会静默注册失败（实测 reload 报 client ✗ 的根因——microtask flush
     // 后来用完整名补注册，但返回信息已经错了）。
     const activeEntry = [...ctx.loader.entries()].find((en) => {
@@ -1877,7 +1877,7 @@ export function apply(ctx: AppContext, config: Config): void {
       let path = cm.clientPath(name)
       if (!path && cm.table && typeof cm.table.keys === 'function') {
         // match 可能是短名，client 表 key 是完整包名
-        // （'@dsh-external/<name>'）——按子串宽松匹配避免误报。
+        // （'@jypjypjypjyp/<name>'）——按子串宽松匹配避免误报。
         for (const key of cm.table.keys()) {
           if (String(key).includes(name)) {
             path = cm.clientPath(key)
@@ -2253,7 +2253,7 @@ export function apply(ctx: AppContext, config: Config): void {
    *
    * 正规语义：profile package.json 的 `link:` 依赖声明 → node_modules junction
    * 物化。此前只对 `dsh.profile.bundles` 列表自愈；agent preset 行解析同样走
-   * node_modules（preset 挂载 `@dsh-external/dsh-music-forge` 等本地包时按
+   * node_modules（preset 挂载 `@jypjypjypjyp/dsh-music-forge` 等本地包时按
    * ctx.baseUrl 解析）——deps 里 link: 声明但不在 bundles 的包（如
    * dsh-music-forge 供 music-producer 预设）重启后 junction 会丢，预设挂载
    * 失败。同一物化机制，同一重建逻辑，自愈范围推广到**全部 link: 依赖**。
@@ -2502,7 +2502,7 @@ export function apply(ctx: AppContext, config: Config): void {
     name: 'dev_uninject_plugin',
     description: '超级模组卸载器：卸载已注入的插件包——卸 loader entry（fiber dispose，工具/监听全清理）→ 清注入清单 → 删 profile junction → 另写 profile patch disabled 条目（防 include.refresh 加回），免重启。参数 = 包名子串（如 dsh-toy-supermod）',
     parameters: {
-      match: { type: 'string', required: true, description: '包名/路径子串（如 dsh-toy-supermod 或 @dsh-external/dsh-toy-supermod）' },
+      match: { type: 'string', required: true, description: '包名/路径子串（如 dsh-toy-supermod 或 @jypjypjypjyp/dsh-toy-supermod）' },
     },
     output: {
       schema: { type: 'string' },
@@ -2857,7 +2857,7 @@ export function apply(ctx: AppContext, config: Config): void {
       if (!/^@?[a-z0-9][a-z0-9-_]*(\/[a-z0-9][a-z0-9-_]*)?$/.test(rawName)) {
         return 'ERROR: name 非法（小写字母/数字/-/_，可带 @scope/）'
       }
-      const pkgName = rawName.startsWith('@') ? rawName : '@dsh-external/' + rawName
+      const pkgName = rawName.startsWith('@') ? rawName : '@jypjypjypjyp/' + rawName
       try {
         mkdirSync(targetDir, { recursive: true })
         const files: Array<[string, string]> = [
@@ -3038,7 +3038,7 @@ export function apply(ctx: AppContext, config: Config): void {
       // 记忆解析路径——换名/换目录会命中旧缓存（ENOENT 旧路径，实测踩坑）。
       // 目录取 DSH_HOME 下稳定路径（不硬编码盘符/用户名，随部署走），
       // 首次解析后缓存永远一致。
-      const TEST_PKG = '@dsh-external/selftest-runner'
+      const TEST_PKG = '@jypjypjypjyp/selftest-runner'
       const TEST_SHORT = 'selftest-runner'
       const tmpDir = join(dshHome, 'super-injector', TEST_SHORT)
       try { rmSync(tmpDir, { recursive: true, force: true }) } catch { /* 忽略 */ }
@@ -3080,7 +3080,7 @@ export function apply(ctx: AppContext, config: Config): void {
           check('注入（host ✓）', true, inj)
         } else {
           let diag = ''
-          try { diag += 'junction→' + readlinkSync(join(profileNodeModules, '@dsh-external', TEST_SHORT)) + '\n' } catch (e) { diag += 'junction err: ' + (e as { code?: string }).code + '\n' }
+          try { diag += 'junction→' + readlinkSync(join(profileNodeModules, '@jypjypjypjyp', TEST_SHORT)) + '\n' } catch (e) { diag += 'junction err: ' + (e as { code?: string }).code + '\n' }
           diag += 'tmpLib=' + existsSync(join(tmpDir, 'lib', 'index.js')) + ' tmpPkg=' + existsSync(join(tmpDir, 'package.json')) + ' tmpSrc=' + existsSync(join(tmpDir, 'src', 'index.ts'))
           check('注入（host ✓）', false, inj + '\n' + diag)
         }
@@ -3112,7 +3112,7 @@ export function apply(ctx: AppContext, config: Config): void {
         // 由安装建立、始终指向实际运行文件）。
         let libPath = ''
         try {
-          const juncLib = join(profileNodeModules, '@dsh-external', 'dsh-super-injector', 'lib', 'index.js')
+          const juncLib = join(profileNodeModules, '@jypjypjypjyp', 'dsh-super-injector', 'lib', 'index.js')
           if (existsSync(juncLib)) {
             const real = realpathSync(juncLib)
             if (existsSync(real)) libPath = real
@@ -3176,7 +3176,7 @@ export function apply(ctx: AppContext, config: Config): void {
         // 保留 tmpDir 目录（junction 目标稳定，Node resolve 缓存一致性）；
         // 仅清理可能残留的 junction（卸载路径已处理，这里兜底）
         try {
-          const linkDir = join(profileNodeModules, '@dsh-external', TEST_SHORT)
+          const linkDir = join(profileNodeModules, '@jypjypjypjyp', TEST_SHORT)
           if (existsSync(linkDir)) rmSync(linkDir, { recursive: true, force: true })
         } catch { /* 忽略 */ }
       }
@@ -3239,9 +3239,9 @@ export function apply(ctx: AppContext, config: Config): void {
       processOne?: (name: string) => unknown
     } | undefined
     if (cmSvc?.pkgMeta && typeof cmSvc.pkgMeta.delete === 'function') {
-      cmSvc.pkgMeta.delete('@dsh-external/dsh-super-injector')
+      cmSvc.pkgMeta.delete('@jypjypjypjyp/dsh-super-injector')
       if (typeof cmSvc.processOne === 'function') {
-        cmSvc.processOne('@dsh-external/dsh-super-injector')
+        cmSvc.processOne('@jypjypjypjyp/dsh-super-injector')
         auditLog('client-meta-healed', 'client-modules pkgMeta 缓存已清并重解析（设置页插件管理 UI 注册）')
       }
     }
